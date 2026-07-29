@@ -1,0 +1,29 @@
+{
+  "name": "catch-output",
+  "version": "1.0.0",
+  "description": "A node package to email STDOUT and STDERR",
+  "main": "./src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type" : "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamiephill/catch-output.git"
+  },
+  "author": "Jamie Hill",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jamiephill/catch-output/issues"
+  },
+  "homepage": "https://github.com/jamiephill/catch-output#readme",
+  "dependencies": {
+    "nodemailer": "^6.9.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@eslint/json": "^0.13.1",
+    "@stylistic/eslint-plugin": "^5.2.2",
+    "eslint": "^9.32.0"
+  }
+}
