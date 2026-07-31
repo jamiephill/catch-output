@@ -4,6 +4,7 @@ import { catchOutput } from "../dist/index.js";
 
 catchOutput({
   enable: true,
+  passthrough: true,
   mailTo: "root@#FQDN#",
   mailSubject: "#FQDN# program output",
   mailBodyPrefix: "This is my prefix - FQDN:#FQDN# / DOMAIN: #DOMAIN# / HOSTNAME: #HOSTNAME# / PROGLINE: #PROGLINE# / PROGNAME: #PROGNAME# / PROGPATH: #PROGPATH#",

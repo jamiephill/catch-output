@@ -10,6 +10,7 @@ export interface CatchOutputOptions {
   mailBodyPrefix?: string;
   forceMail?: boolean;
   enable?: boolean;
+  passthrough?: boolean;
   smtpConfig?: SMTPTransport.Options;
 }
 
@@ -27,6 +28,7 @@ export class CatchOutput {
   private readonly mailBodyPrefix: string;
   private readonly forceMail: boolean;
   private readonly catchOutput: boolean;
+  private readonly passthrough: boolean;
   private readonly smtpConfig: SMTPTransport.Options;
 
   private stdoutBuffer = '';
@@ -40,6 +42,7 @@ export class CatchOutput {
   constructor(options: CatchOutputOptions = {}) {
     const isInteractive = Boolean(process.stdin.isTTY);
     this.catchOutput = options.enable ?? !isInteractive;
+    this.passthrough = options.passthrough ?? false;
 
     this.fqdn = os.hostname();
     this.domain = this.fqdn.split('.').slice(-2).join('.');
@@ -98,7 +101,7 @@ export class CatchOutput {
       .replace(/#PROGPATH#/g, this.progPath);
   }
 
-  public start() {
+  public start(): void {
     if (!this.catchOutput || this.isHooked) {
       return;
     }
@@ -108,16 +111,26 @@ export class CatchOutput {
     // Intercept process.stdout
     //-------------------------------------------------------------------------
     process.stdout.write = (
-      chunk: string | Uint8Array, 
+      chunk: string | Uint8Array,
       encoding?: BufferEncoding | ((err?: Error) => void),
-      callback?: (err?: Error) => void
+      callback?: (err?: Error | null) => void
     ): boolean => {
       this.stdoutBuffer += chunk.toString();
-      //-----------------------------------------------------------------------
-      // Optional: keep writing to terminal as well
-      // return this.origStdoutWrite(chunk, encoding, callback);
-      //-----------------------------------------------------------------------
-      const cb = typeof encoding === "function" ? encoding : callback;
+
+      const enc = typeof encoding === 'string' ? encoding : undefined;
+      //const cb = typeof encoding === "function" ? encoding : callback;
+      const cb = (typeof encoding === 'function' ? encoding : callback) as
+        | ((err?: Error | null) => void)
+        | undefined;
+
+      if (this.passthrough) {
+        return this.origStdoutWrite(
+          chunk,
+          enc as BufferEncoding,
+          cb,
+        );
+      }
+
       if (typeof cb === "function") {
         cb();
       }
@@ -130,10 +143,23 @@ export class CatchOutput {
     process.stderr.write = (
       chunk: string | Uint8Array,
       encoding?: BufferEncoding | ((err?: Error) => void),
-      callback?: (err?: Error) => void
+      callback?: (err?: Error | null) => void
     ): boolean => {
       this.stderrBuffer += chunk.toString();
-      const cb = typeof encoding === "function" ? encoding : callback;
+      const enc = typeof encoding === 'string' ? encoding : undefined;
+      //const cb = typeof encoding === "function" ? encoding : callback;
+      const cb = (typeof encoding === 'function' ? encoding : callback) as
+        | ((err?: Error | null) => void)
+        | undefined;
+
+      if (this.passthrough) {
+        return this.origStdoutWrite(
+          chunk,
+          enc as BufferEncoding,
+          cb,
+        );
+      }
+
       if (typeof cb === "function") {
         cb();
       }

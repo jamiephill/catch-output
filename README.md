@@ -32,6 +32,8 @@ catchOutput({
 - mailBodyPrefix
   - Prefix the output with this information
   - Default: `The following output was generated on #HOSTNAME# by '#PROGLINE#'`
+- passthrough
+  - Continue to output to STDOUT and STDERR, and send email
 - forceMail
   - Send email even if nothing was written to STDOUT or STDERR
   - Default: false

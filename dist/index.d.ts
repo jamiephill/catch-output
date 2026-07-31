@@ -6,6 +6,7 @@ export interface CatchOutputOptions {
     mailBodyPrefix?: string;
     forceMail?: boolean;
     enable?: boolean;
+    passthrough?: boolean;
     smtpConfig?: SMTPTransport.Options;
 }
 export declare class CatchOutput {
@@ -22,6 +23,7 @@ export declare class CatchOutput {
     private readonly mailBodyPrefix;
     private readonly forceMail;
     private readonly catchOutput;
+    private readonly passthrough;
     private readonly smtpConfig;
     private stdoutBuffer;
     private stderrBuffer;

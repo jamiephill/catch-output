@@ -14,6 +14,7 @@ export class CatchOutput {
     mailBodyPrefix;
     forceMail;
     catchOutput;
+    passthrough;
     smtpConfig;
     stdoutBuffer = '';
     stderrBuffer = '';
@@ -23,6 +24,7 @@ export class CatchOutput {
     constructor(options = {}) {
         const isInteractive = Boolean(process.stdin.isTTY);
         this.catchOutput = options.enable ?? !isInteractive;
+        this.passthrough = options.passthrough ?? false;
         this.fqdn = os.hostname();
         this.domain = this.fqdn.split('.').slice(-2).join('.');
         this.hostname = this.fqdn.split(".")[0];
@@ -84,11 +86,12 @@ export class CatchOutput {
         //-------------------------------------------------------------------------
         process.stdout.write = (chunk, encoding, callback) => {
             this.stdoutBuffer += chunk.toString();
-            //-----------------------------------------------------------------------
-            // Optional: keep writing to terminal as well
-            // return this.origStdoutWrite(chunk, encoding, callback);
-            //-----------------------------------------------------------------------
-            const cb = typeof encoding === "function" ? encoding : callback;
+            const enc = typeof encoding === 'string' ? encoding : undefined;
+            //const cb = typeof encoding === "function" ? encoding : callback;
+            const cb = (typeof encoding === 'function' ? encoding : callback);
+            if (this.passthrough) {
+                return this.origStdoutWrite(chunk, enc, cb);
+            }
             if (typeof cb === "function") {
                 cb();
             }
@@ -99,7 +102,12 @@ export class CatchOutput {
         //-------------------------------------------------------------------------
         process.stderr.write = (chunk, encoding, callback) => {
             this.stderrBuffer += chunk.toString();
-            const cb = typeof encoding === "function" ? encoding : callback;
+            const enc = typeof encoding === 'string' ? encoding : undefined;
+            //const cb = typeof encoding === "function" ? encoding : callback;
+            const cb = (typeof encoding === 'function' ? encoding : callback);
+            if (this.passthrough) {
+                return this.origStdoutWrite(chunk, enc, cb);
+            }
             if (typeof cb === "function") {
                 cb();
             }
