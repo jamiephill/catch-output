@@ -1,7 +1,7 @@
 # catch-output : node module
 Catch Output is a package that will send an email with any output to STDOUT or STDERR.  It's meant to capture and send output from automated programs.
 
-# Build 
+# Build
 ```npm run build```
 
 # Install
@@ -22,7 +22,7 @@ catchOutput({
   - Default: !process.stdin.isTTY (i.e. enable if the process doesn't have a TTY)
 - mailTo
   - Where to send the output
-  - Default: root@#fqdn#
+  - Default: root@#DOMAIN#
 - mailFrom
   - Who it is from
   - Default: `"${this.hostname}" <${this.mailTo.split(',')[0].trim()}>`)
