@@ -1,6 +1,6 @@
 {
   "name": "catch-output",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A node package to email STDOUT and STDERR",
   "main": "./src/index.js",
   "types": "./dist/index.d.ts",
