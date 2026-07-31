@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import globals from "globals";
 import json from "@eslint/json";
 import { defineConfig } from "eslint/config";
 import stylistic from "@stylistic/eslint-plugin";
@@ -14,6 +15,9 @@ export default defineConfig([
     files: [ "**/*.{js,mjs,cjs}" ],
     languageOptions: {
       ecmaVersion: "latest",
+      globals: {
+        ...globals.node,
+      },
     },
     plugins: {
       js,
@@ -80,7 +84,7 @@ export default defineConfig([
   },
   {
     files: [ "**/*.js" ],
-    languageOptions: { sourceType: "script" },
+    languageOptions: { sourceType: "module" },
   },
   {
     "extends": [ "json/recommended" ],

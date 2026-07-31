@@ -1,44 +1,79 @@
-import os from 'node:os';
-import path from 'node:path';
-import nodemailer from 'nodemailer';
+import os from "node:os";
+import path from "node:path";
+import nodemailer from "nodemailer";
+import type SMTPTransport from 'nodemailer/lib/smtp-transport/index.js';
 
-class OutputCatcher {
-  constructor(options = {}) {
+export interface CatchOutputOptions {
+  mailTo?: string;
+  mailFrom?: string;
+  mailSubject?: string;
+  mailBodyPrefix?: string;
+  forceMail?: boolean;
+  enable?: boolean;
+  smtpConfig?: SMTPTransport.Options;
+}
+
+export class CatchOutput {
+  private readonly fqdn: string;
+  private readonly domain: string;
+  private readonly hostname: string;
+  private readonly progPath: string;
+  private readonly progName: string;
+  private readonly progLine: string;
+
+  private readonly mailTo: string;
+  private readonly mailFrom: string;
+  private readonly mailSubject: string;
+  private readonly mailBodyPrefix: string;
+  private readonly forceMail: boolean;
+  private readonly catchOutput: boolean;
+  private readonly smtpConfig: SMTPTransport.Options;
+
+  private stdoutBuffer = '';
+  private stderrBuffer = '';
+
+  private readonly origStdoutWrite: typeof process.stdout.write;
+  private readonly origStderrWrite: typeof process.stderr.write;
+
+  private isHooked = false;
+
+  constructor(options: CatchOutputOptions = {}) {
     const isInteractive = Boolean(process.stdin.isTTY);
     this.catchOutput = options.enable ?? !isInteractive;
 
     this.fqdn = os.hostname();
-    this.hostname = this.fqdn.split('.')[0];
-    this.progPath = process.argv[1] || 'node';
+    this.domain = this.fqdn.split('.').slice(-2).join('.');
+    this.hostname = this.fqdn.split(".")[0];
+    this.progPath = process.argv[1] || "node";
     this.progName = path.basename(this.progPath);
-    this.progLine = `${process.argv0} ${process.argv.slice(1).join(' ')}`;
+    this.progLine = `${process.argv0} ${process.argv.slice(1).join(" ")}`;
 
     //-------------------------------------------------------------------------
     // Configuration defaults
     //-------------------------------------------------------------------------
-    this.mailTo = options.mailTo || `root@${this.fqdn}`
+    this.mailTo = options.mailTo || `root@${this.domain}`;
     this.mailFrom = options.mailFrom ||
-      `"${this.hostname}" <${this.mailTo.split(',')[0].trim()}>`;
-    this.mailSubject = options.mailSubject || '#PROGNAME# output';
+      `"${this.hostname}" <${this.mailTo.split(",")[0].trim()}>`;
+    this.mailSubject = options.mailSubject || "#PROGNAME# output";
     this.mailBodyPrefix = options.mailBodyPrefix ||
-      `The following output was generated on #HOSTNAME# by '#PROGLINE#'`;
+      `The following output was generated on #HOSTNAME# by "#PROGLINE#"`;
     this.forceMail = options.forceMail || false;
     this.smtpConfig = options.smtpConfig || {
-      host: 'localhost',
+      host: "localhost",
       port: 25,
       tls: {
         //---------------------------------------------------------------------
         // Disable cert validation
         //---------------------------------------------------------------------
         rejectUnauthorized: false,
-      }
+      },
     };
 
     //-------------------------------------------------------------------------
     // Buffers
     //-------------------------------------------------------------------------
-    this.stdoutBuffer = '';
-    this.stderrBuffer = '';
+    this.stdoutBuffer = "";
+    this.stderrBuffer = "";
 
     //-------------------------------------------------------------------------
     // Original streams
@@ -53,45 +88,62 @@ class OutputCatcher {
   // Prefixing a class method with hash (#) makes it private to the class
   // Replace placeholders like #HOSTNAME#, #PROGNAME#
   //---------------------------------------------------------------------------
-  #token(str) {
+  #token(str: string): string {
     return str
       .replace(/#FQDN#/g, this.fqdn)
+      .replace(/#DOMAIN#/g, this.domain)
       .replace(/#HOSTNAME#/g, this.hostname)
       .replace(/#PROGNAME#/g, this.progName)
       .replace(/#PROGLINE#/g, this.progLine)
       .replace(/#PROGPATH#/g, this.progPath);
   }
 
-  start() {
-    if (!this.catchOutput || this.isHooked) return;
+  public start() {
+    if (!this.catchOutput || this.isHooked) {
+      return;
+    }
     this.isHooked = true;
 
     //-------------------------------------------------------------------------
     // Intercept process.stdout
     //-------------------------------------------------------------------------
-    process.stdout.write = (chunk, _encoding, callback) => {
+    process.stdout.write = (
+      chunk: string | Uint8Array, 
+      encoding?: BufferEncoding | ((err?: Error) => void),
+      callback?: (err?: Error) => void
+    ): boolean => {
       this.stdoutBuffer += chunk.toString();
       //-----------------------------------------------------------------------
       // Optional: keep writing to terminal as well
       // return this.origStdoutWrite(chunk, encoding, callback);
       //-----------------------------------------------------------------------
-      if (typeof callback === 'function') callback();
+      const cb = typeof encoding === "function" ? encoding : callback;
+      if (typeof cb === "function") {
+        cb();
+      }
       return true;
     };
 
     //-------------------------------------------------------------------------
     // Intercept process.stderr
     //-------------------------------------------------------------------------
-    process.stderr.write = (chunk, _encoding, callback) => {
+    process.stderr.write = (
+      chunk: string | Uint8Array,
+      encoding?: BufferEncoding | ((err?: Error) => void),
+      callback?: (err?: Error) => void
+    ): boolean => {
       this.stderrBuffer += chunk.toString();
-      if (typeof callback === 'function') callback();
+      const cb = typeof encoding === "function" ? encoding : callback;
+      if (typeof cb === "function") {
+        cb();
+      }
       return true;
     };
 
     //-------------------------------------------------------------------------
     // Intercept Uncaught Exceptions (die handling)
     //-------------------------------------------------------------------------
-    process.on('uncaughtException', (err) => {
+    process.on("uncaughtException", (err: Error) => {
       this.stderrBuffer += `\nUncaught Exception:\n${err.stack || err}\n`;
       //-----------------------------------------------------------------------
       // Send email and exit immediately
@@ -104,7 +156,7 @@ class OutputCatcher {
     //-------------------------------------------------------------------------
     // Mimic Perl's END block on normal exit
     //-------------------------------------------------------------------------
-    process.on('beforeExit', async () => {
+    process.on("beforeExit", async () => {
       if (this.isHooked) {
         await this.flushAndMailSync();
         this.stop(); // Avoid duplicate triggers
@@ -112,8 +164,10 @@ class OutputCatcher {
     });
   }
 
-  stop() {
-    if (!this.isHooked) return;
+  public stop() {
+    if (!this.isHooked) {
+      return;
+    }
 
     process.stdout.write = this.origStdoutWrite;
     process.stderr.write = this.origStderrWrite;
@@ -121,7 +175,7 @@ class OutputCatcher {
     this.isHooked = false;
   }
 
-  async flushAndMailSync() {
+  public async flushAndMailSync(): Promise<void> {
     if (!this.stdoutBuffer && !this.stderrBuffer && !this.forceMail) {
       //-----------------------------------------------------------------------
       // Nothing to report
@@ -135,8 +189,12 @@ class OutputCatcher {
     const prefix = this.#token(this.mailBodyPrefix);
 
     let body = `${prefix}\n\n`;
-    if (this.stderrBuffer) body += `STDERR:\n${this.stderrBuffer}\n\n`;
-    if (this.stdoutBuffer) body += `STDOUT:\n${this.stdoutBuffer}\n\n`;
+    if (this.stderrBuffer) {
+      body += `STDERR:\n${this.stderrBuffer}\n\n`;
+    }
+    if (this.stdoutBuffer) {
+      body += `STDOUT:\n${this.stdoutBuffer}\n\n`;
+    }
 
     const transporter = nodemailer.createTransport(this.smtpConfig);
 
@@ -151,8 +209,9 @@ class OutputCatcher {
       //-----------------------------------------------------------------------
       // Fallback to original stderr if mailing fails
       //-----------------------------------------------------------------------
+      const errorMsg = err instanceof Error ? err.message : String(err);
       this.origStderrWrite(
-        `Failed to send execution log email: ${err.message}\n\n`
+        `Failed to send execution log email: ${errorMsg}\n\n`
       );
       this.origStderrWrite(
         `From: ${from}\nTo: ${to}\nSubject: ${subject}\n\n${body}`
@@ -164,8 +223,8 @@ class OutputCatcher {
 //-----------------------------------------------------------------------------
 // Singleton helper to closely match `use WCS::Catch;` behavior
 //-----------------------------------------------------------------------------
-export function catchOutput(options) {
-  const catcher = new OutputCatcher(options);
+export function catchOutput(options: CatchOutputOptions = {}): CatchOutput {
+  const catcher = new CatchOutput(options);
   catcher.start();
   return catcher;
 }

@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "description": "A node package to email STDOUT and STDERR",
   "main": "./src/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "test": "node test/test.js"
   },
   "type": "module",
   "repository": {
@@ -24,6 +29,10 @@
     "@eslint/js": "^9.31.0",
     "@eslint/json": "^0.13.1",
     "@stylistic/eslint-plugin": "^5.2.2",
-    "eslint": "^9.32.0"
+    "@types/node": "^26.1.2",
+    "@types/nodemailer": "^8.0.1",
+    "eslint": "^9.32.0",
+    "globals": "^16.3.0",
+    "typescript": "^7.0.2"
   }
 }
